@@ -559,6 +559,8 @@ dotslash also has these special experimental commands:
   dotslash --version                Print the version of dotslash
   dotslash -- b3sum FILE            Compute blake3 hash
   dotslash -- clean                 Clean dotslash cache
+  dotslash -- create-nix-entry STORE_PATH PATH [--substituter URL] [--trusted-public-keys KEYS]
+                                    Generate \"nix-substituter\" provider entry
   dotslash -- create-url-entry URL  Generate \"http\" provider entry
   dotslash -- cache-dir             Print path to the cache directory
   dotslash -- fetch DOTSLASH_FILE   Prepare for execution, but print exe path

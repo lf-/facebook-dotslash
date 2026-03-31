@@ -26,6 +26,7 @@ use crate::dotslash_cache::DotslashCache;
 use crate::download::download_artifact;
 use crate::locate::locate_artifact;
 use crate::platform::SUPPORTED_PLATFORM;
+use crate::print_entry_for_nix_store_path::print_entry_for_nix_store_path;
 use crate::print_entry_for_url::print_entry_for_url;
 use crate::util;
 use crate::util::fs_ctx;
@@ -38,6 +39,9 @@ pub enum Subcommand {
 
     /// Clean the cache directory
     Clean,
+
+    /// Create the artifact entry for a nix store path
+    CreateNixEntry,
 
     /// Create a the artifact entry for DotSlash file from a URL
     CreateUrlEntry,
@@ -71,6 +75,7 @@ impl fmt::Display for Subcommand {
         f.write_str(match self {
             Self::B3Sum => "b3sum",
             Self::Clean => "clean",
+            Self::CreateNixEntry => "create-nix-entry",
             Self::CreateUrlEntry => "create-url-entry",
             Self::CacheDir => "cache-dir",
             Self::Fetch => "fetch",
@@ -90,6 +95,7 @@ impl FromStr for Subcommand {
         match name {
             "b3sum" => Ok(Subcommand::B3Sum),
             "clean" => Ok(Subcommand::Clean),
+            "create-nix-entry" => Ok(Subcommand::CreateNixEntry),
             "create-url-entry" => Ok(Subcommand::CreateUrlEntry),
             "cache-dir" => Ok(Subcommand::CacheDir),
             "fetch" => Ok(Subcommand::Fetch),
@@ -152,6 +158,60 @@ fn run_subcommand_impl(subcommand: &Subcommand, args: &mut ArgsOs) -> anyhow::Re
             let _ = util::make_tree_entries_writable(dotslash_cache.cache_dir());
             // Then delete the contents.
             fs_ctx::remove_dir_all(dotslash_cache.cache_dir())?;
+        }
+
+        Subcommand::CreateNixEntry => {
+            let args: Vec<String> = args
+                .map(|a| {
+                    a.into_string()
+                        .map_err(|a| anyhow::format_err!("non-UTF-8 argument: {:?}", a))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+
+            let mut substituter: Option<&str> = None;
+            let mut trusted_public_keys: Option<&str> = None;
+            let mut positional = Vec::new();
+            let mut i = 0;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--substituter" => {
+                        i += 1;
+                        substituter = Some(
+                            args.get(i)
+                                .map(|s| s.as_str())
+                                .ok_or_else(|| anyhow::format_err!("--substituter requires a value"))?,
+                        );
+                    }
+                    "--trusted-public-keys" => {
+                        i += 1;
+                        trusted_public_keys = Some(
+                            args.get(i)
+                                .map(|s| s.as_str())
+                                .ok_or_else(|| {
+                                    anyhow::format_err!("--trusted-public-keys requires a value")
+                                })?,
+                        );
+                    }
+                    other => {
+                        positional.push(other);
+                    }
+                }
+                i += 1;
+            }
+
+            if positional.len() != 2 {
+                return Err(anyhow::format_err!(
+                    "expected exactly 2 positional arguments (STORE_PATH PATH), got {}",
+                    positional.len(),
+                ));
+            }
+
+            print_entry_for_nix_store_path(
+                positional[0],
+                positional[1],
+                substituter,
+                trusted_public_keys,
+            );
         }
 
         Subcommand::CreateUrlEntry => {
@@ -238,6 +298,8 @@ dotslash also has these special experimental commands:
   dotslash --version                Print the version of dotslash
   dotslash -- b3sum FILE            Compute blake3 hash
   dotslash -- clean                 Clean dotslash cache
+  dotslash -- create-nix-entry STORE_PATH PATH [--substituter URL] [--trusted-public-keys KEYS]
+                                    Generate "nix-substituter" provider entry
   dotslash -- create-url-entry URL  Generate "http" provider entry
   dotslash -- cache-dir             Print path to the cache directory
   dotslash -- fetch DOTSLASH_FILE   Prepare for execution, but print exe path

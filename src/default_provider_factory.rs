@@ -11,6 +11,7 @@
 use crate::gcs_provider::GcsProvider;
 use crate::github_release_provider::GitHubReleaseProvider;
 use crate::http_provider::HttpProvider;
+use crate::nix_provider::NixSubstituterProvider;
 use crate::provider::Provider;
 use crate::provider::ProviderFactory;
 use crate::s3_provider::S3Provider;
@@ -24,6 +25,7 @@ impl ProviderFactory for DefaultProviderFactory {
             "gcs" => Ok(Box::new(GcsProvider {})),
             "github-release" => Ok(Box::new(GitHubReleaseProvider {})),
             "s3" => Ok(Box::new(S3Provider {})),
+            "nix-substituter" => Ok(Box::new(NixSubstituterProvider {})),
             _ => Err(anyhow::format_err!(
                 "unknown provider type: `{provider_type}`",
             )),
