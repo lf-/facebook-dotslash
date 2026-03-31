@@ -16,6 +16,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::ArtifactEntry;
+use crate::provider::FetchResult;
 use crate::provider::Provider;
 use crate::util::CommandDisplay;
 use crate::util::CommandStderrDisplay;
@@ -66,7 +67,7 @@ impl Provider for GcsProvider {
         destination: &Path,
         _fetch_lock: &FileLock,
         _: &ArtifactEntry,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<FetchResult> {
         let GcsProviderConfig { bucket, object } = <_>::deserialize(provider_config)?;
         let url = format!("https://storage.googleapis.com/{}/{}", bucket, object,);
         let output_arg = destination.to_str().unwrap();
@@ -93,6 +94,6 @@ impl Provider for GcsProvider {
             .with_context(|| format!("{}", CommandDisplay::new(&command)))
             .context("curl failed to download from GCS");
         }
-        Ok(())
+        Ok(FetchResult::Downloaded)
     }
 }

@@ -27,6 +27,7 @@ use crate::config::HashAlgorithm;
 use crate::config::ProvidersOrder;
 use crate::digest::Digest;
 use crate::fetch_method::ArtifactFormat;
+use crate::provider::FetchResult;
 use crate::provider::ProviderFactory;
 use crate::util;
 use crate::util::FileLock;
@@ -96,14 +97,46 @@ pub fn download_artifact<P: ProviderFactory>(
             &file_lock,
             artifact_entry,
         ) {
-            Ok(()) => match verify_artifact(&fetch_destination, artifact_entry) {
-                Ok(()) => {
-                    unpack_verified_artifact(
-                        &fetch_destination,
-                        temp_dir_to_mv.path(),
-                        artifact_entry.format,
-                        artifact_entry.path.as_str(),
-                    )?;
+            Ok(fetch_result) => {
+                let verified = match fetch_result {
+                    FetchResult::PreVerified => true,
+                    FetchResult::Downloaded => {
+                        match verify_artifact(&fetch_destination, artifact_entry) {
+                            Ok(()) => true,
+                            Err(e) => {
+                                warnings.push(format!(
+                                    "warning: failed to verify artifact {:?}",
+                                    e
+                                ));
+                                false
+                            }
+                        }
+                    }
+                };
+                if verified {
+                    match fetch_result {
+                        FetchResult::PreVerified => {
+                            // The provider already placed the artifact in its
+                            // final form (e.g. a symlink). Move it into the
+                            // temp dir at the artifact path.
+                            let artifact_path_in_temp =
+                                temp_dir_to_mv.path().join(artifact_entry.path.as_str());
+                            if let Some(parent) = artifact_path_in_temp.parent() {
+                                if parent != Path::new("") {
+                                    fs_ctx::create_dir_all(parent)?;
+                                }
+                            }
+                            fs_ctx::rename(&fetch_destination, &artifact_path_in_temp)?;
+                        }
+                        FetchResult::Downloaded => {
+                            unpack_verified_artifact(
+                                &fetch_destination,
+                                temp_dir_to_mv.path(),
+                                artifact_entry.format,
+                                artifact_entry.path.as_str(),
+                            )?;
+                        }
+                    }
                     if artifact_entry.readonly {
                         util::make_tree_entries_read_only(temp_dir_to_mv.path())?;
                     }
@@ -132,8 +165,7 @@ pub fn download_artifact<P: ProviderFactory>(
                     }
                     return Ok(());
                 }
-                Err(e) => warnings.push(format!("warning: failed to verify artifact {:?}", e)),
-            },
+            }
             Err(e) => warnings.push(format!("failed to fetch artifact: {:?}", e)),
         }
     }

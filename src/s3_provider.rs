@@ -15,6 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::ArtifactEntry;
+use crate::provider::FetchResult;
 use crate::provider::Provider;
 use crate::util::CommandDisplay;
 use crate::util::CommandStderrDisplay;
@@ -36,7 +37,7 @@ impl Provider for S3Provider {
         destination: &Path,
         _fetch_lock: &FileLock,
         _: &ArtifactEntry,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<FetchResult> {
         let S3ProviderConfig {
             bucket,
             key,
@@ -62,6 +63,6 @@ impl Provider for S3Provider {
             .with_context(|| format!("{}", CommandDisplay::new(&command)))
             .context("the AWS CLI failed");
         }
-        Ok(())
+        Ok(FetchResult::Downloaded)
     }
 }

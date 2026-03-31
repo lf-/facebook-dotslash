@@ -15,6 +15,16 @@ use serde_json::Value;
 use crate::config::ArtifactEntry;
 use crate::util::FileLock;
 
+#[derive(Copy, Clone)]
+pub enum FetchResult {
+    /// Artifact was downloaded to `destination`. Caller should verify and unpack.
+    Downloaded,
+    /// Provider handled integrity verification (e.g. nix content-addressed store).
+    /// Artifact is already in its final form at `destination`.
+    /// Caller should skip hash/size verification and unpacking.
+    PreVerified,
+}
+
 pub trait Provider {
     /// When called, the provider should fetch the artifact as specified by the
     /// `provider_config` and write it to `destination`.
@@ -39,7 +49,7 @@ pub trait Provider {
         destination: &Path,
         fetch_lock: &FileLock,
         artifact_entry: &ArtifactEntry,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<FetchResult>;
 }
 
 pub trait ProviderFactory {

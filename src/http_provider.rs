@@ -17,6 +17,7 @@ use serde_json::Value;
 use crate::config::ArtifactEntry;
 use crate::curl::CurlCommand;
 use crate::curl::FetchContext;
+use crate::provider::FetchResult;
 use crate::provider::Provider;
 use crate::util::FileLock;
 
@@ -34,7 +35,7 @@ impl Provider for HttpProvider {
         destination: &Path,
         _fetch_lock: &FileLock,
         artifact_entry: &ArtifactEntry,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<FetchResult> {
         let HttpProviderConfig { url } = <_>::deserialize(provider_config)?;
         let curl_cmd = CurlCommand::new(url.as_ref());
         // Currently, we always disable the progress bar, but we plan to add a
@@ -48,6 +49,6 @@ impl Provider for HttpProvider {
         curl_cmd
             .get_request(destination, &fetch_context)
             .with_context(|| format!("failed to fetch `{}`", url))?;
-        Ok(())
+        Ok(FetchResult::Downloaded)
     }
 }

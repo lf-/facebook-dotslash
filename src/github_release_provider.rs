@@ -16,6 +16,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::ArtifactEntry;
+use crate::provider::FetchResult;
 use crate::provider::Provider;
 use crate::util::CommandDisplay;
 use crate::util::CommandStderrDisplay;
@@ -37,7 +38,7 @@ impl Provider for GitHubReleaseProvider {
         destination: &Path,
         _fetch_lock: &FileLock,
         _artifact_entry: &ArtifactEntry,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<FetchResult> {
         let GitHubReleaseProviderConfig { tag, repo, name } = <_>::deserialize(provider_config)?;
         let mut command = Command::new("gh");
         command
@@ -68,7 +69,7 @@ impl Provider for GitHubReleaseProvider {
             .context("the GitHub CLI failed");
         }
 
-        Ok(())
+        Ok(FetchResult::Downloaded)
     }
 }
 
